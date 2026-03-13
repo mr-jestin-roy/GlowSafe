@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { MapPin, AlertCircle, RefreshCw, ArrowRight, Clock, TrendingUp, Sun, Moon } from "lucide-react";
+import { MapPin, AlertCircle, RefreshCw, ArrowRight, Clock, TrendingUp, Sun, Moon, Search } from "lucide-react";
 import { Button } from "./ui/button";
 import { Alert, AlertDescription } from "./ui/alert";
 import { Link } from "react-router";
+import { Input } from "./ui/input";
 
 interface UVData {
   value: number;
@@ -26,11 +27,12 @@ interface WeeklyData {
 
 export function Home() {
   const [uvData, setUvData] = useState<UVData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [locationEnabled, setLocationEnabled] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [skinTone, setSkinTone] = useState<number | null>(null);
   const [hourlyForecast, setHourlyForecast] = useState<HourlyForecast[]>([]);
   const [weeklyForecast, setWeeklyForecast] = useState<WeeklyData[]>([]);
+  const [postcode, setPostcode] = useState("");
+  const [postcodeError, setPostcodeError] = useState("");
 
   const getRiskLevel = (uv: number) => {
     if (uv >= 11) return { risk: "Extreme", color: "bg-purple-500" };
@@ -100,27 +102,46 @@ export function Home() {
     return forecast;
   };
 
-  // Simulate fetching UV data
-  const fetchUVData = () => {
+  // Map Australian postcodes to location names
+  const getLocationFromPostcode = (code: string) => {
+    const prefix = parseInt(code.substring(0, 2));
+    if (code.startsWith("2")) return `${code}, NSW`;
+    if (code.startsWith("3")) return `${code}, VIC`;
+    if (code.startsWith("4")) return `${code}, QLD`;
+    if (code.startsWith("5")) return `${code}, SA`;
+    if (code.startsWith("6")) return `${code}, WA`;
+    if (code.startsWith("7")) return `${code}, TAS`;
+    if (code.startsWith("08") || code.startsWith("09")) return `${code}, NT`;
+    if (prefix >= 0 && prefix <= 2) return `${code}, ACT`;
+    return `${code}, AU`;
+  };
+
+  // Simulate fetching UV data based on postcode
+  const fetchUVData = (code?: string) => {
+    const searchCode = code || postcode;
+    if (!/^\d{4}$/.test(searchCode)) {
+      setPostcodeError("Please enter a valid 4-digit Australian postcode");
+      return;
+    }
+    setPostcodeError("");
     setLoading(true);
-    
+
     // Simulate API call delay
     setTimeout(() => {
-      // Mock Sydney UV data (Australia summer typically has high UV)
-      const mockUV = Math.floor(Math.random() * 5) + 8; // Between 8-12
+      const mockUV = Math.floor(Math.random() * 5) + 8;
       const riskInfo = getRiskLevel(mockUV);
       const currentHour = new Date().getHours();
-      
+
       setUvData({
         value: mockUV,
-        location: "Sydney, NSW",
+        location: getLocationFromPostcode(searchCode),
         time: new Date().toLocaleTimeString("en-US", {
           hour: "2-digit",
           minute: "2-digit",
         }),
         ...riskInfo,
       });
-      
+
       setHourlyForecast(generateHourlyForecast(currentHour));
       setWeeklyForecast(generateWeeklyForecast());
       setLoading(false);
@@ -149,40 +170,24 @@ export function Home() {
   };
 
   useEffect(() => {
-    // Automatically use default location (Sydney) for demo purposes
-    // In production, you would try geolocation first
-    fetchUVData();
-
     // Read skin tone from localStorage
     const saved = localStorage.getItem("skinTone");
     if (saved) {
       setSkinTone(parseInt(saved));
     }
+
+    // Load last used postcode
+    const savedPostcode = localStorage.getItem("postcode");
+    if (savedPostcode) {
+      setPostcode(savedPostcode);
+      fetchUVData(savedPostcode);
+    }
   }, []);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <RefreshCw className="w-8 h-8 animate-spin text-orange-500" />
-      </div>
-    );
-  }
-
-  if (!locationEnabled) {
-    return (
-      <div className="p-6 max-w-screen-sm mx-auto">
-        <Alert className="mt-20">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            Unable to access your location. Please enable location services in your device settings or manually select a city.
-          </AlertDescription>
-        </Alert>
-        <Button onClick={fetchUVData} className="w-full mt-4">
-          Use Default Location (Sydney)
-        </Button>
-      </div>
-    );
-  }
+  const handlePostcodeSubmit = () => {
+    localStorage.setItem("postcode", postcode);
+    fetchUVData();
+  };
 
   const safeHours = getSafeHours();
 
@@ -191,12 +196,50 @@ export function Home() {
       {/* Header */}
       <div className="mb-6 pt-4">
         <h1 className="text-2xl mb-2">UV Protection Assistant</h1>
-        <div className="flex items-center text-gray-600">
-          <MapPin className="w-4 h-4 mr-1" />
-          <span className="text-sm">{uvData?.location}</span>
+        <div className="flex items-center gap-2 mt-3">
+          <Input
+            type="text"
+            inputMode="numeric"
+            placeholder="Enter postcode (e.g. 2000)"
+            value={postcode}
+            onChange={(e) => setPostcode(e.target.value.replace(/\D/g, "").slice(0, 4))}
+            onKeyDown={(e) => e.key === "Enter" && handlePostcodeSubmit()}
+            className="flex-1"
+          />
+          <Button onClick={handlePostcodeSubmit} disabled={loading} size="sm">
+            {loading ? (
+              <RefreshCw className="w-4 h-4 animate-spin" />
+            ) : (
+              <Search className="w-4 h-4" />
+            )}
+          </Button>
         </div>
+        {postcodeError && (
+          <p className="text-sm text-red-500 mt-1">{postcodeError}</p>
+        )}
+        {uvData && (
+          <div className="flex items-center text-gray-600 mt-2">
+            <MapPin className="w-4 h-4 mr-1" />
+            <span className="text-sm">{uvData.location}</span>
+          </div>
+        )}
       </div>
 
+      {loading && (
+        <div className="flex items-center justify-center py-20">
+          <RefreshCw className="w-8 h-8 animate-spin text-orange-500" />
+        </div>
+      )}
+
+      {!uvData && !loading && (
+        <div className="text-center py-20 text-gray-400">
+          <Sun className="w-12 h-12 mx-auto mb-3 opacity-50" />
+          <p>Enter your postcode to check UV index</p>
+        </div>
+      )}
+
+      {uvData && !loading && (
+      <>
       {/* UV Index Dashboard */}
       <div className="bg-white rounded-3xl shadow-lg p-8 mb-6">
         <div className="text-center">
@@ -246,7 +289,7 @@ export function Home() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={fetchUVData}
+          onClick={() => fetchUVData()}
           className="w-full mt-4"
         >
           <RefreshCw className="w-4 h-4 mr-2" />
@@ -420,6 +463,8 @@ export function Home() {
             If you must go out, use SPF50+ sunscreen, wear UPF protective clothing, and don sunglasses and a wide-brimmed hat.
           </AlertDescription>
         </Alert>
+      )}
+      </>
       )}
     </div>
   );
