@@ -1,7 +1,11 @@
 import { useState, useEffect } from "react";
-import { Check, Info } from "lucide-react";
+import { Check, Info, Loader2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Alert, AlertDescription } from "./ui/alert";
+import {
+  fetchSkinAnalysis,
+  type SkinAnalysisResult,
+} from "../lib/gemini";
 
 interface SkinType {
   level: number;
@@ -17,6 +21,10 @@ interface SkinType {
 export function SkinToneTool() {
   const [selectedSkin, setSelectedSkin] = useState<number | null>(null);
   const [saved, setSaved] = useState(false);
+  const [analysisResult, setAnalysisResult] =
+    useState<SkinAnalysisResult | null>(null);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
 
   const skinTypes: SkinType[] = [
     {
@@ -128,6 +136,36 @@ export function SkinToneTool() {
 
   const selectedType = skinTypes.find((s) => s.level === selectedSkin);
 
+  // Fetch AI analysis when skin type is selected and saved
+  const handleAnalyze = async () => {
+    if (!selectedType) return;
+
+    setAnalysisLoading(true);
+    setAnalysisError(null);
+    setAnalysisResult(null);
+
+    try {
+      // Build the description string from the skin type object
+      const description = [
+        `Fitzpatrick Skin Type ${selectedType.level}: ${selectedType.name}`,
+        `Description: ${selectedType.description}`,
+        `Characteristics: ${selectedType.characteristics.join("; ")}`,
+        `Typical burn time (UV index 10): ${selectedType.burnTime}`,
+        `Melanin level: ${selectedType.melaninLevel}`,
+        `Vitamin D info: ${selectedType.vitaminD}`,
+      ].join("\n");
+
+      const result = await fetchSkinAnalysis(description);
+      setAnalysisResult(result);
+    } catch (err) {
+      setAnalysisError(
+        err instanceof Error ? err.message : "Failed to fetch analysis"
+      );
+    } finally {
+      setAnalysisLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-sky-100 to-orange-50">
       {/* Header */}
@@ -194,10 +232,36 @@ export function SkinToneTool() {
           </Button>
         )}
 
-        {/* Detailed Analysis */}
-        {selectedType && (
+        {/* AI Analysis Button */}
+        {selectedSkin && (
+          <Button
+            onClick={handleAnalyze}
+            disabled={analysisLoading}
+            variant="outline"
+            className="w-full mb-6"
+          >
+            {analysisLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Generating AI Analysis...
+              </>
+            ) : (
+              "Generate AI Skin Analysis"
+            )}
+          </Button>
+        )}
+
+        {/* Analysis Error */}
+        {analysisError && (
+          <Alert className="mb-6" variant="destructive">
+            <AlertDescription>{analysisError}</AlertDescription>
+          </Alert>
+        )}
+
+        {/* AI-Powered Detailed Analysis */}
+        {analysisResult && (
           <div className="bg-white rounded-2xl shadow-md p-6 mb-6">
-            <h3 className="font-semibold mb-4">Your Detailed Skin Analysis</h3>
+            <h3 className="font-semibold mb-4">{analysisResult.title}</h3>
 
             {/* Characteristics */}
             <div className="mb-4">
@@ -205,7 +269,7 @@ export function SkinToneTool() {
                 Typical Characteristics
               </h4>
               <ul className="space-y-2">
-                {selectedType.characteristics.map((char, index) => (
+                {analysisResult.typical_characteristics.map((char, index) => (
                   <li key={index} className="text-sm text-gray-600 flex">
                     <span className="mr-2">•</span>
                     <span>{char}</span>
@@ -217,21 +281,33 @@ export function SkinToneTool() {
             {/* UV Sensitivity */}
             <div className="bg-orange-50 rounded-lg p-4 mb-4">
               <h4 className="text-sm font-medium text-orange-900 mb-2">
-                ☀️ UV Sensitivity Analysis
+                UV Sensitivity Analysis
               </h4>
               <p className="text-sm text-orange-800 mb-2">
-                In a UV index 10 environment, estimated burn time is approximately{" "}
-                <strong>{selectedType.burnTime}</strong>
+                {analysisResult.uv_sensitivity_analysis.summary}
               </p>
-              <p className="text-xs text-orange-700">
-                Actual time varies based on daily UV intensity, altitude, reflective surfaces, and other factors
+              <p className="text-sm text-orange-800 mb-2">
+                Estimated burn time (UV index 10):{" "}
+                <strong>
+                  {analysisResult.uv_sensitivity_analysis.burn_time_estimate}
+                </strong>
               </p>
+              <ul className="space-y-1">
+                {analysisResult.uv_sensitivity_analysis.risk_factors.map(
+                  (factor, index) => (
+                    <li key={index} className="text-xs text-orange-700 flex">
+                      <span className="mr-2">⚠️</span>
+                      <span>{factor}</span>
+                    </li>
+                  )
+                )}
+              </ul>
             </div>
 
-            {/* Melanin & Vitamin D */}
+            {/* Biological Mechanism */}
             <div className="bg-blue-50 rounded-lg p-4 mb-4">
               <h4 className="text-sm font-medium text-blue-900 mb-2">
-                🧬 Biological Mechanism
+                Biological Mechanism
               </h4>
               <div className="space-y-2">
                 <div>
@@ -239,11 +315,14 @@ export function SkinToneTool() {
                     Melanin Level:
                   </span>
                   <span className="text-sm text-blue-800 ml-2">
-                    {selectedType.melaninLevel}
+                    {analysisResult.biological_mechanism.melanin_level}
                   </span>
                 </div>
                 <p className="text-sm text-blue-800 leading-relaxed">
-                  {selectedType.vitaminD}
+                  {analysisResult.biological_mechanism.mechanism_explanation}
+                </p>
+                <p className="text-xs text-blue-700 italic">
+                  {analysisResult.biological_mechanism.vitamin_d_note}
                 </p>
               </div>
             </div>
@@ -251,34 +330,15 @@ export function SkinToneTool() {
             {/* Personalized Recommendations */}
             <div className="bg-green-50 rounded-lg p-4">
               <h4 className="text-sm font-medium text-green-900 mb-2">
-                ✅ Personalized Recommendations
+                Personalized Recommendations
               </h4>
-              {selectedType.level <= 2 && (
-                <ul className="text-sm text-green-800 space-y-1">
-                  <li>• Always use SPF50+ broad-spectrum sunscreen</li>
-                  <li>• Reapply every 90-120 minutes</li>
-                  <li>• Avoid being outdoors between 10 AM and 4 PM</li>
-                  <li>• Wear UPF50+ protective clothing</li>
-                  <li>• Get regular skin cancer screenings</li>
-                </ul>
-              )}
-              {selectedType.level === 3 || selectedType.level === 4 ? (
-                <ul className="text-sm text-green-800 space-y-1">
-                  <li>• Use SPF30-50+ sunscreen</li>
-                  <li>• Reapply every 2 hours or after swimming</li>
-                  <li>• Take extra precautions when UV index ≥8</li>
-                  <li>• Maintain balanced vitamin D levels</li>
-                </ul>
-              ) : null}
-              {selectedType.level >= 5 && (
-                <ul className="text-sm text-green-800 space-y-1">
-                  <li>• Though sunburn risk is low, still use SPF30+ sunscreen</li>
-                  <li>• Pay special attention to vitamin D levels (blood test recommended)</li>
-                  <li>• May need 15-30 minutes extra sun exposure daily</li>
-                  <li>• Consult doctor about vitamin D supplements</li>
-                  <li>• Skin cancer risk still exists, don't neglect protection</li>
-                </ul>
-              )}
+              <ul className="text-sm text-green-800 space-y-1">
+                {analysisResult.personalized_recommendations.map(
+                  (rec, index) => (
+                    <li key={index}>• {rec}</li>
+                  )
+                )}
+              </ul>
             </div>
           </div>
         )}

@@ -25,9 +25,10 @@ export function SunscreenGuide() {
   const [unit, setUnit] = useState<"teaspoon" | "ml" | "finger">("teaspoon");
 
   useEffect(() => {
-    // Simulate getting UV data from home page
-    const mockUV = Math.floor(Math.random() * 5) + 8;
-    setCurrentUV(mockUV);
+    const savedUV = localStorage.getItem("currentUV");
+    if (savedUV) {
+      setCurrentUV(parseInt(savedUV));
+    }
   }, []);
 
   const bodyParts: BodyPart[] = [

@@ -115,8 +115,8 @@ export function Home() {
     return forecast;
   };
 
-  // Look up postcode in DB and fetch UV data
-  const fetchUVData = (code?: string) => {
+  // Look up postcode in DB and fetch UV data from Open-Meteo API (free, no key needed)
+  const fetchUVData = async (code?: string) => {
     const searchCode = code || postcode;
     if (!/^\d{4}$/.test(searchCode)) {
       setPostcodeError("Please enter a valid 4-digit Australian postcode");
@@ -133,8 +133,71 @@ export function Home() {
     setPostcode(searchCode);
     setLoading(true);
 
-    // Simulate API call delay
-    setTimeout(() => {
+    try {
+      const response = await fetch(
+        `https://api.open-meteo.com/v1/forecast?latitude=${entry.lat}&longitude=${entry.lng}&current=uv_index&hourly=uv_index&daily=uv_index_max&timezone=auto&forecast_days=7`
+      );
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      const currentUV = Math.round(data.current.uv_index);
+      const riskInfo = getRiskLevel(currentUV);
+
+      setUvData({
+        value: currentUV,
+        location: `${entry.suburb}, ${entry.state}`,
+        time: new Date().toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        ...riskInfo,
+      });
+
+      // Store current UV for other components
+      localStorage.setItem("currentUV", String(currentUV));
+
+      // Build hourly forecast from API data (next 12 hours from current hour)
+      const now = new Date();
+      const currentHourIndex = now.getHours();
+      const todayStr = now.toISOString().split("T")[0];
+      const startIndex = data.hourly.time.findIndex((t: string) => t === `${todayStr}T${String(currentHourIndex).padStart(2, '0')}:00`);
+      const hourlySlice = startIndex >= 0 ? startIndex : 0;
+
+      const hourlyData: HourlyForecast[] = data.hourly.uv_index
+        .slice(hourlySlice, hourlySlice + 12)
+        .map((uvi: number, i: number) => {
+          const uvIndex = Math.round(uvi);
+          const hour = (currentHourIndex + i) % 24;
+          return {
+            hour: `${String(hour).padStart(2, '0')}:00`,
+            uvIndex,
+            color: getRiskLevel(uvIndex).color,
+          };
+        });
+      setHourlyForecast(hourlyData);
+
+      // Build weekly forecast from API data
+      const weeklyData: WeeklyData[] = data.daily.uv_index_max.map((maxUvi: number, i: number) => {
+        const date = new Date(data.daily.time[i]);
+        const dayName = date.toLocaleDateString("en-US", { weekday: "short" });
+        const maxUV = Math.round(maxUvi);
+        return {
+          day: dayName,
+          maxUV,
+          minUV: Math.round(maxUV * 0.2),
+        };
+      });
+      setWeeklyForecast(weeklyData);
+
+      setLoading(false);
+    } catch (error) {
+      console.error("Failed to fetch UV data:", error);
+
+      // Fallback to mock data if API fails
       const mockUV = Math.floor(Math.random() * 5) + 8;
       const riskInfo = getRiskLevel(mockUV);
       const currentHour = new Date().getHours();
@@ -149,10 +212,11 @@ export function Home() {
         ...riskInfo,
       });
 
+      localStorage.setItem("currentUV", String(mockUV));
       setHourlyForecast(generateHourlyForecast(currentHour));
       setWeeklyForecast(generateWeeklyForecast());
       setLoading(false);
-    }, 800);
+    }
   };
 
   // Calculate burn time
