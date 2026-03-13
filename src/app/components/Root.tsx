@@ -1,11 +1,12 @@
 import { Outlet, Link, useLocation } from "react-router";
-import { Sun, BookOpen, User, Droplet } from "lucide-react";
+import { Home, Sun, BookOpen, User, Droplet } from "lucide-react";
 
 export function Root() {
   const location = useLocation();
 
   const navItems = [
-    { path: "/", icon: Sun, label: "UV Index" },
+    { path: "/", icon: Home, label: "Home" },
+    { path: "/uv", icon: Sun, label: "UV Index" },
     { path: "/knowledge", icon: BookOpen, label: "Knowledge" },
     { path: "/skin-tone", icon: User, label: "Skin" },
     { path: "/sunscreen", icon: Droplet, label: "Sunscreen" },

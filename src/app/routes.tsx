@@ -1,5 +1,6 @@
 import { createBrowserRouter } from "react-router";
 import { Root } from "./components/Root";
+import { Landing } from "./components/Landing";
 import { Home } from "./components/Home";
 import { KnowledgeCenter } from "./components/KnowledgeCenter";
 import { SkinToneTool } from "./components/SkinToneTool";
@@ -11,7 +12,8 @@ export const router = createBrowserRouter([
     path: "/",
     Component: Root,
     children: [
-      { index: true, Component: Home },
+      { index: true, Component: Landing },
+      { path: "uv", Component: Home },
       { path: "knowledge", Component: KnowledgeCenter },
       { path: "skin-tone", Component: SkinToneTool },
       { path: "sunscreen", Component: SunscreenGuide },
