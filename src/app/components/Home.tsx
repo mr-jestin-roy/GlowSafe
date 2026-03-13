@@ -4,6 +4,17 @@ import { Button } from "./ui/button";
 import { Alert, AlertDescription } from "./ui/alert";
 import { Link } from "react-router";
 import { Input } from "./ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "./ui/dialog";
+import postcodeData from "../../data/postcodes.json";
+
+interface PostcodeEntry {
+  suburb: string;
+  state: string;
+  lat: number;
+  lng: number;
+}
+
+const postcodes = postcodeData as Record<string, PostcodeEntry>;
 
 interface UVData {
   value: number;
@@ -33,6 +44,8 @@ export function Home() {
   const [weeklyForecast, setWeeklyForecast] = useState<WeeklyData[]>([]);
   const [postcode, setPostcode] = useState("");
   const [postcodeError, setPostcodeError] = useState("");
+  const [showPostcodeDialog, setShowPostcodeDialog] = useState(false);
+  const [dialogPostcode, setDialogPostcode] = useState("");
 
   const getRiskLevel = (uv: number) => {
     if (uv >= 11) return { risk: "Extreme", color: "bg-purple-500" };
@@ -102,28 +115,22 @@ export function Home() {
     return forecast;
   };
 
-  // Map Australian postcodes to location names
-  const getLocationFromPostcode = (code: string) => {
-    const prefix = parseInt(code.substring(0, 2));
-    if (code.startsWith("2")) return `${code}, NSW`;
-    if (code.startsWith("3")) return `${code}, VIC`;
-    if (code.startsWith("4")) return `${code}, QLD`;
-    if (code.startsWith("5")) return `${code}, SA`;
-    if (code.startsWith("6")) return `${code}, WA`;
-    if (code.startsWith("7")) return `${code}, TAS`;
-    if (code.startsWith("08") || code.startsWith("09")) return `${code}, NT`;
-    if (prefix >= 0 && prefix <= 2) return `${code}, ACT`;
-    return `${code}, AU`;
-  };
-
-  // Simulate fetching UV data based on postcode
+  // Look up postcode in DB and fetch UV data
   const fetchUVData = (code?: string) => {
     const searchCode = code || postcode;
     if (!/^\d{4}$/.test(searchCode)) {
       setPostcodeError("Please enter a valid 4-digit Australian postcode");
       return;
     }
+
+    const entry = postcodes[searchCode];
+    if (!entry) {
+      setPostcodeError("Postcode not found. Please enter a valid Australian postcode.");
+      return;
+    }
+
     setPostcodeError("");
+    setPostcode(searchCode);
     setLoading(true);
 
     // Simulate API call delay
@@ -134,7 +141,7 @@ export function Home() {
 
       setUvData({
         value: mockUV,
-        location: getLocationFromPostcode(searchCode),
+        location: `${entry.suburb}, ${entry.state}`,
         time: new Date().toLocaleTimeString("en-US", {
           hour: "2-digit",
           minute: "2-digit",
@@ -176,11 +183,13 @@ export function Home() {
       setSkinTone(parseInt(saved));
     }
 
-    // Load last used postcode
+    // Load last used postcode or show dialog
     const savedPostcode = localStorage.getItem("postcode");
     if (savedPostcode) {
       setPostcode(savedPostcode);
       fetchUVData(savedPostcode);
+    } else {
+      setShowPostcodeDialog(true);
     }
   }, []);
 
@@ -189,38 +198,80 @@ export function Home() {
     fetchUVData();
   };
 
+  const handleDialogSubmit = () => {
+    const entry = postcodes[dialogPostcode];
+    if (!/^\d{4}$/.test(dialogPostcode)) {
+      setPostcodeError("Please enter a valid 4-digit Australian postcode");
+      return;
+    }
+    if (!entry) {
+      setPostcodeError("Postcode not found. Please enter a valid Australian postcode.");
+      return;
+    }
+    setPostcodeError("");
+    setPostcode(dialogPostcode);
+    localStorage.setItem("postcode", dialogPostcode);
+    setShowPostcodeDialog(false);
+    fetchUVData(dialogPostcode);
+  };
+
   const safeHours = getSafeHours();
 
   return (
-    <div className="p-6 max-w-screen-sm mx-auto">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg mx-auto">
+      {/* Postcode Dialog */}
+      <Dialog open={showPostcodeDialog} onOpenChange={setShowPostcodeDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Enter Your Postcode</DialogTitle>
+            <DialogDescription>
+              We need your postcode to show local UV index data.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 pt-2">
+            <Input
+              type="text"
+              inputMode="numeric"
+              placeholder="e.g. 2000"
+              value={dialogPostcode}
+              onChange={(e) => {
+                setDialogPostcode(e.target.value.replace(/\D/g, "").slice(0, 4));
+                setPostcodeError("");
+              }}
+              onKeyDown={(e) => e.key === "Enter" && handleDialogSubmit()}
+              autoFocus
+            />
+            {postcodeError && (
+              <p className="text-sm text-red-500">{postcodeError}</p>
+            )}
+            <Button onClick={handleDialogSubmit} className="w-full">
+              <Search className="w-4 h-4 mr-2" />
+              Look Up
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Header */}
       <div className="mb-6 pt-4">
         <h1 className="text-2xl mb-2">UV Protection Assistant</h1>
-        <div className="flex items-center gap-2 mt-3">
-          <Input
-            type="text"
-            inputMode="numeric"
-            placeholder="Enter postcode (e.g. 2000)"
-            value={postcode}
-            onChange={(e) => setPostcode(e.target.value.replace(/\D/g, "").slice(0, 4))}
-            onKeyDown={(e) => e.key === "Enter" && handlePostcodeSubmit()}
-            className="flex-1"
-          />
-          <Button onClick={handlePostcodeSubmit} disabled={loading} size="sm">
-            {loading ? (
-              <RefreshCw className="w-4 h-4 animate-spin" />
-            ) : (
-              <Search className="w-4 h-4" />
-            )}
-          </Button>
-        </div>
-        {postcodeError && (
-          <p className="text-sm text-red-500 mt-1">{postcodeError}</p>
-        )}
         {uvData && (
-          <div className="flex items-center text-gray-600 mt-2">
-            <MapPin className="w-4 h-4 mr-1" />
-            <span className="text-sm">{uvData.location}</span>
+          <div className="flex items-center justify-between mt-2">
+            <div className="flex items-center text-gray-600">
+              <MapPin className="w-4 h-4 mr-1" />
+              <span className="text-sm">{uvData.location}</span>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setDialogPostcode("");
+                setPostcodeError("");
+                setShowPostcodeDialog(true);
+              }}
+            >
+              Change
+            </Button>
           </div>
         )}
       </div>
@@ -240,8 +291,10 @@ export function Home() {
 
       {uvData && !loading && (
       <>
+      {/* UV Dashboard + Hourly: side by side on desktop */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
       {/* UV Index Dashboard */}
-      <div className="bg-white rounded-3xl shadow-lg p-8 mb-6">
+      <div className="bg-white rounded-3xl shadow-lg p-8">
         <div className="text-center">
           <p className="text-sm text-gray-500 mb-2">Current UV Index</p>
           <div className="relative w-48 h-48 mx-auto mb-4">
@@ -269,7 +322,7 @@ export function Home() {
                 }}
               />
             </svg>
-            
+
             {/* Center value */}
             <div className="absolute inset-0 flex flex-col items-center justify-center">
               <span className="text-6xl font-bold">{uvData?.value}</span>
@@ -280,7 +333,7 @@ export function Home() {
           <div className={`inline-block px-6 py-2 rounded-full text-white ${uvData?.color}`}>
             {uvData?.risk}
           </div>
-          
+
           <p className="text-xs text-gray-500 mt-3">
             Updated: {uvData?.time}
           </p>
@@ -298,7 +351,7 @@ export function Home() {
       </div>
 
       {/* Hourly Forecast */}
-      <div className="bg-white rounded-2xl shadow-md p-6 mb-6">
+      <div className="bg-white rounded-2xl shadow-md p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold flex items-center">
             <Clock className="w-5 h-5 mr-2 text-orange-600" />
@@ -328,10 +381,13 @@ export function Home() {
           </div>
         </div>
       </div>
+      </div>{/* end grid */}
 
+      {/* Safe Hours + Weekly: side by side on desktop */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
       {/* Safe Hours */}
       {safeHours && (
-        <div className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl shadow-md p-6 mb-6 text-white">
+        <div className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl shadow-md p-6 text-white">
           <div className="flex items-start">
             <Moon className="w-6 h-6 mr-3 flex-shrink-0 mt-1" />
             <div>
@@ -350,7 +406,7 @@ export function Home() {
       )}
 
       {/* Weekly Trend */}
-      <div className="bg-white rounded-2xl shadow-md p-6 mb-6">
+      <div className="bg-white rounded-2xl shadow-md p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold flex items-center">
             <TrendingUp className="w-5 h-5 mr-2 text-orange-600" />
@@ -386,10 +442,13 @@ export function Home() {
           ))}
         </div>
       </div>
+      </div>{/* end grid */}
 
+      {/* Bottom row: Personalized + Explanation side by side on desktop */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
       {/* Personalized Advice */}
       {skinTone && uvData && (
-        <div className="bg-white rounded-2xl shadow-md p-6 mb-6">
+        <div className="bg-white rounded-2xl shadow-md p-6">
           <h3 className="font-semibold mb-3">Your Personalized Protection Advice</h3>
           <div className="space-y-3">
             <div className="flex justify-between items-center pb-3 border-b">
@@ -414,7 +473,7 @@ export function Home() {
       {/* Skin Tone Setup Guide */}
       {!skinTone && (
         <Link to="/skin-tone">
-          <div className="bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl shadow-md p-6 mb-6 text-white cursor-pointer hover:shadow-lg transition-shadow">
+          <div className="bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl shadow-md p-6 text-white cursor-pointer hover:shadow-lg transition-shadow">
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <h3 className="font-semibold mb-2">Get Personalized Advice</h3>
@@ -453,6 +512,7 @@ export function Home() {
           ))}
         </div>
       </div>
+      </div>{/* end grid */}
 
       {/* Emergency Alert */}
       {uvData && uvData.value >= 8 && (
