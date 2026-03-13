@@ -132,7 +132,7 @@ export async function fetchSkinAnalysis(
       responseMimeType: "application/json",
       responseSchema: responseSchema,
       temperature: 0.7,
-      maxOutputTokens: 1024,
+      maxOutputTokens: 4096,
     },
   };
 
