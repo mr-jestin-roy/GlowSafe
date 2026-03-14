@@ -1,6 +1,6 @@
 /**
  * Run all SQL files in src/Database/ in the correct order.
- * Use as Pre-Deploy Command on Render: node scripts/run-db-seed.js
+ * On Render, run via Start Command: npm run db:seed && npm run start
  * Requires DATABASE_URL in the environment.
  */
 import pg from "pg";

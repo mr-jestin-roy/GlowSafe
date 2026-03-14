@@ -1,0 +1,10 @@
+# Render.com Blueprint (optional). Use this if you deploy via Render Dashboard.
+# Key: do NOT run db:seed in the build — the database is not available during build.
+# Seed runs at start (no paid Pre-Deploy Command needed).
+
+services:
+  - type: web
+    name: glowsafe
+    runtime: node
+    buildCommand: npm install && npm run build
+    startCommand: npm run db:seed && npm run start
