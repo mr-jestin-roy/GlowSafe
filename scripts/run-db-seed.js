@@ -29,7 +29,12 @@ async function main() {
     process.exit(1);
   }
 
-  const client = new pg.Client({ connectionString });
+  const client = new pg.Client({
+    connectionString,
+    ssl: process.env.DATABASE_URL?.includes("render.com")
+      ? { rejectUnauthorized: false }
+      : false,
+  });
   try {
     await client.connect();
     console.log("Connected to database. Running SQL files in order...");
