@@ -104,12 +104,13 @@ Vercel builds and deploys the **static frontend** on every push. The frontend mu
 
 3. **Environment variables** (Vercel project → Settings → Environment Variables)
    - `VITE_API_URL` = `https://glowsafe.onrender.com` (your Render backend URL; no trailing slash)
-   - `VITE_GEMINI_API_KEY` = (optional) your Gemini API key for skin analysis
+   - `VITE_GEMINI_API_KEY` = (optional) your Gemini API key for skin analysis  
+   - **Do not** set `DATABASE_URL` on Vercel. The frontend runs in the browser and never connects to PostgreSQL; only the Render backend uses `DATABASE_URL`. Setting it on Vercel does nothing and would expose secrets to the build.
 
 4. **Deploy**
    - Push to the connected branch (e.g. `main`). Vercel runs the build and deploys. Each push triggers a new deployment (CI/CD).
 
-Result: the Vercel URL serves the app; all `/api` requests go to `https://glowsafe.onrender.com` so skin types, tips, and other DB data load correctly.
+Result: the Vercel URL serves the app; all `/api` requests go to `https://glowsafe.onrender.com` so skin types, tips, and other DB data load correctly. The Render backend sends CORS headers so the browser allows these cross-origin requests.
 
 ---
 

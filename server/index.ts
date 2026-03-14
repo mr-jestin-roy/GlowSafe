@@ -18,6 +18,15 @@ const isProduction = process.env.NODE_ENV === "production";
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Allow Vercel (and other) frontends to call this API (cross-origin)
+app.use((_req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  if (_req.method === "OPTIONS") return res.sendStatus(204);
+  next();
+});
+
 app.use(express.json());
 
 // Log API requests (shows in terminal where you run pnpm dev:server)
