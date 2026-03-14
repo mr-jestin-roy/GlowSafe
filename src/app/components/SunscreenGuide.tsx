@@ -11,88 +11,86 @@ import {
   DialogTrigger,
 } from "./ui/dialog";
 
+const API_BASE = "/api";
+const TSP_TO_ML = 5; // 1 teaspoon ≈ 5 ml
+
 interface BodyPart {
   name: string;
   area: number; // Percentage of total body surface area
-  teaspoons: number;
-  ml: number;
-  fingerLength: string;
   icon: string;
+}
+
+interface PreventionTip {
+  tipId: number;
+  dosageInTsp: number;
+  reapplyIntervalMin: number;
 }
 
 export function SunscreenGuide() {
   const [currentUV, setCurrentUV] = useState(10);
-  const [unit, setUnit] = useState<"teaspoon" | "ml" | "finger">("teaspoon");
+  const [unit, setUnit] = useState<"teaspoon" | "ml">("teaspoon");
+  const [tip, setTip] = useState<PreventionTip | null>(null);
+  const [tipsLoading, setTipsLoading] = useState(false);
+
+  const fitzpatrick = parseInt(localStorage.getItem("skinTone") ?? "3", 10);
 
   useEffect(() => {
     const savedUV = localStorage.getItem("currentUV");
     if (savedUV) {
-      setCurrentUV(parseInt(savedUV));
+      setCurrentUV(parseInt(savedUV, 10));
     }
   }, []);
 
+  // Fetch total dosage from preventiontips (by current UV and user's skin type)
+  useEffect(() => {
+    let cancelled = false;
+    const skinTone = localStorage.getItem("skinTone");
+    const fitzpatrick = skinTone ? parseInt(skinTone, 10) : 3;
+    async function fetchTips() {
+      setTipsLoading(true);
+      try {
+        const res = await fetch(
+          `${API_BASE}/tips?uv_index=${currentUV}&fitzpatrick_type=${fitzpatrick}`
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        const first = Array.isArray(data) ? data[0] : data;
+        if (!cancelled && first?.dosageInTsp != null) {
+          setTip({
+            tipId: first.tipId,
+            dosageInTsp: first.dosageInTsp,
+            reapplyIntervalMin: first.reapplyIntervalMin ?? 0,
+          });
+        }
+      } finally {
+        if (!cancelled) setTipsLoading(false);
+      }
+    }
+    fetchTips();
+    return () => { cancelled = true; };
+  }, [currentUV]);
+
   const bodyParts: BodyPart[] = [
-    {
-      name: "Face & Neck",
-      area: 9,
-      teaspoons: 1,
-      ml: 5,
-      fingerLength: "2 finger lengths",
-      icon: "👤",
-    },
-    {
-      name: "Both Arms (incl. hands)",
-      area: 18,
-      teaspoons: 2,
-      ml: 10,
-      fingerLength: "4 finger lengths",
-      icon: "💪",
-    },
-    {
-      name: "Front Torso",
-      area: 18,
-      teaspoons: 2,
-      ml: 10,
-      fingerLength: "4 finger lengths",
-      icon: "👕",
-    },
-    {
-      name: "Back Torso",
-      area: 18,
-      teaspoons: 2,
-      ml: 10,
-      fingerLength: "4 finger lengths",
-      icon: "🔙",
-    },
-    {
-      name: "Front Legs",
-      area: 18,
-      teaspoons: 2,
-      ml: 10,
-      fingerLength: "4 finger lengths",
-      icon: "🦵",
-    },
-    {
-      name: "Back Legs",
-      area: 18,
-      teaspoons: 2,
-      ml: 10,
-      fingerLength: "4 finger lengths",
-      icon: "🦿",
-    },
+    { name: "Face & Neck", area: 9, icon: "👤" },
+    { name: "Both Arms (incl. hands)", area: 18, icon: "💪" },
+    { name: "Front Torso", area: 18, icon: "👕" },
+    { name: "Back Torso", area: 18, icon: "🔙" },
+    { name: "Front Legs", area: 18, icon: "🦵" },
+    { name: "Back Legs", area: 18, icon: "🦿" },
   ];
 
-  const totalTeaspoons = bodyParts.reduce((sum, part) => sum + part.teaspoons, 0);
-  const totalMl = bodyParts.reduce((sum, part) => sum + part.ml, 0);
+  // Totals from preventiontips; fallback if API not loaded
+  const totalTeaspoons = tip?.dosageInTsp ?? 9;
+  const totalMl = totalTeaspoons * TSP_TO_ML;
 
   const getUnitDisplay = (part: BodyPart) => {
+    const partTsp = (totalTeaspoons * part.area) / 100;
+    const partMl = (totalMl * part.area) / 100;
     switch (unit) {
       case "teaspoon":
-        return `${part.teaspoons} tsp`;
+        return `${partTsp.toFixed(1)} tsp`;
       case "ml":
-        return `${part.ml} ml`;
-      case "finger":
-        return part.fingerLength;
+        return `${partMl.toFixed(0)} ml`;
     }
   };
 
@@ -179,22 +177,15 @@ export function SunscreenGuide() {
                           <strong>Milliliter (ml)</strong>
                           <p className="text-sm mt-1">Precise volume measurement</p>
                         </div>
-                        <div>
-                          <strong>Finger Length Method</strong>
-                          <p className="text-sm mt-1">
-                            Length of sunscreen squeezed from fingertip, intuitive and easy to use
-                          </p>
-                        </div>
                       </DialogDescription>
                     </DialogHeader>
                   </DialogContent>
                 </Dialog>
               </div>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 {[
                   { value: "teaspoon" as const, label: "Teaspoon" },
                   { value: "ml" as const, label: "Milliliter" },
-                  { value: "finger" as const, label: "Finger" },
                 ].map((option) => (
                   <button
                     key={option.value}
@@ -215,15 +206,14 @@ export function SunscreenGuide() {
             <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-2xl shadow-lg p-6 text-white">
               <div className="flex items-center mb-3">
                 <Droplet className="w-6 h-6 mr-2" />
-                <span className="text-sm opacity-90">Total Full Body Amount</span>
+                <span className="text-sm opacity-90">Total Full Body Amount for Fitzpatrick Skin Type {fitzpatrick} at the current UV Index {currentUV}</span>
               </div>
               <div className="text-4xl font-bold mb-2">
                 {unit === "teaspoon" && `${totalTeaspoons} tsp`}
                 {unit === "ml" && `${totalMl} ml`}
-                {unit === "finger" && "~20 finger lengths"}
               </div>
               <p className="text-sm opacity-90">
-                Equivalent to a golf ball size | Reapply every 2 hours or after swimming
+                Reapply every {tip?.reapplyIntervalMin} minutes or after swimming
               </p>
             </div>
 

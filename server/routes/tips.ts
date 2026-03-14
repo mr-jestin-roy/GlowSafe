@@ -15,7 +15,7 @@ router.get("/", async (req: Request, res: Response) => {
 
   let query = `
     SELECT tip_id, uv_index_min, uv_index_max, fitzpatrick_type,
-           dosage_ml, reapply_interval_min
+           dosage_in_tsp, reapply_interval_min
     FROM preventiontips
     WHERE uv_index_min <= $1 AND uv_index_max >= $1
   `;
@@ -36,9 +36,9 @@ router.get("/", async (req: Request, res: Response) => {
       uvIndexMin: parseFloat(r.uv_index_min),
       uvIndexMax: parseFloat(r.uv_index_max),
       fitzpatrickType: r.fitzpatrick_type,
-      dosageMl: parseFloat(r.dosage_ml),
+      dosageInTsp: parseFloat(r.dosage_in_tsp),
       reapplyIntervalMin: r.reapply_interval_min,
-    }))
+    })),
   );
 });
 

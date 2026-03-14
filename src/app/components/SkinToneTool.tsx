@@ -2,10 +2,7 @@ import { useState, useEffect } from "react";
 import { Check, Info, Loader2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Alert, AlertDescription } from "./ui/alert";
-import {
-  fetchSkinAnalysis,
-  type SkinAnalysisResult,
-} from "../lib/gemini";
+import { fetchSkinAnalysis, type SkinAnalysisResult } from "../lib/gemini";
 
 interface SkinType {
   level: number;
@@ -18,7 +15,22 @@ interface SkinType {
   color: string;
 }
 
+const API_BASE = "/api";
+
+// Tailwind only includes classes that appear in source. Map level → class so colors are never purged.
+const SKIN_COLOR_CLASSES: Record<number, string> = {
+  1: "bg-stone-100",
+  2: "bg-amber-50",
+  3: "bg-amber-100",
+  4: "bg-amber-200",
+  5: "bg-amber-700",
+  6: "bg-amber-900",
+};
+
 export function SkinToneTool() {
+  const [skinTypes, setSkinTypes] = useState<SkinType[]>([]);
+  const [typesLoading, setTypesLoading] = useState(true);
+  const [typesError, setTypesError] = useState<string | null>(null);
   const [selectedSkin, setSelectedSkin] = useState<number | null>(null);
   const [saved, setSaved] = useState(false);
   const [analysisResult, setAnalysisResult] =
@@ -26,103 +38,36 @@ export function SkinToneTool() {
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
 
-  const skinTypes: SkinType[] = [
-    {
-      level: 1,
-      name: "Type I - Always Burns",
-      description: "Pale white, often with freckles",
-      characteristics: [
-        "Very fair skin, almost translucent",
-        "Hair typically red or light blonde",
-        "Eyes are blue or green",
-        "Always burns, never tans",
-      ],
-      burnTime: "10-15 minutes",
-      vitaminD: "Extremely low melanin content, highest vitamin D synthesis efficiency, but must be extremely vigilant about sunburn risk",
-      melaninLevel: "Extremely Low",
-      color: "bg-stone-100",
-    },
-    {
-      level: 2,
-      name: "Type II - Usually Burns",
-      description: "Fair skin, may have freckles",
-      characteristics: [
-        "Fair skin",
-        "Hair is blonde, light brown, or red",
-        "Eyes are blue, green, or hazel",
-        "Usually burns, tans with difficulty",
-      ],
-      burnTime: "15-20 minutes",
-      vitaminD: "Low melanin content, high vitamin D synthesis efficiency, but still needs sun protection",
-      melaninLevel: "Low",
-      color: "bg-amber-50",
-    },
-    {
-      level: 3,
-      name: "Type III - Sometimes Burns",
-      description: "Medium skin tone",
-      characteristics: [
-        "Skin is light brown or beige",
-        "Hair is brown or dark blonde",
-        "Eyes are brown or hazel",
-        "Sometimes burns, gradually tans",
-      ],
-      burnTime: "20-30 minutes",
-      vitaminD: "Moderate melanin content, needs moderate sun exposure to synthesize adequate vitamin D",
-      melaninLevel: "Moderate",
-      color: "bg-amber-100",
-    },
-    {
-      level: 4,
-      name: "Type IV - Rarely Burns",
-      description: "Olive or light brown skin tone",
-      characteristics: [
-        "Skin is olive or medium brown",
-        "Hair is dark brown or black",
-        "Eyes are dark brown",
-        "Rarely burns, tans easily",
-      ],
-      burnTime: "30-45 minutes",
-      vitaminD: "Higher melanin content, needs longer sun exposure to synthesize vitamin D, but lower sunburn risk",
-      melaninLevel: "Higher",
-      color: "bg-amber-200",
-    },
-    {
-      level: 5,
-      name: "Type V - Very Rarely Burns",
-      description: "Dark brown skin tone",
-      characteristics: [
-        "Skin is dark brown",
-        "Hair is black",
-        "Eyes are dark brown or black",
-        "Very rarely burns, tans very easily",
-      ],
-      burnTime: "45-60 minutes",
-      vitaminD: "High melanin content, needs significantly increased sun exposure time (about 3-6x) to synthesize adequate vitamin D",
-      melaninLevel: "High",
-      color: "bg-amber-700",
-    },
-    {
-      level: 6,
-      name: "Type VI - Never Burns",
-      description: "Very dark skin tone",
-      characteristics: [
-        "Skin is very dark",
-        "Hair is black",
-        "Eyes are dark brown or black",
-        "Never burns, skin is deeply pigmented",
-      ],
-      burnTime: "60+ minutes",
-      vitaminD: "Very high melanin content, strongest natural UV protection, but highest vitamin D deficiency risk, may need supplements",
-      melaninLevel: "Very High",
-      color: "bg-amber-900",
-    },
-  ];
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchTypes() {
+      setTypesLoading(true);
+      setTypesError(null);
+      try {
+        const res = await fetch(`${API_BASE}/skinprofiles/types`);
+        if (!res.ok) throw new Error("Failed to load skin types");
+        const data = await res.json();
+        if (!cancelled) setSkinTypes(data);
+      } catch (err) {
+        if (!cancelled) {
+          setTypesError(
+            err instanceof Error ? err.message : "Failed to load skin types",
+          );
+        }
+      } finally {
+        if (!cancelled) setTypesLoading(false);
+      }
+    }
+    fetchTypes();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
-    const saved = localStorage.getItem("skinTone");
-    if (saved) {
-      setSelectedSkin(parseInt(saved));
+    const savedVal = localStorage.getItem("skinTone");
+    if (savedVal) {
+      setSelectedSkin(parseInt(savedVal, 10));
     }
   }, []);
 
@@ -159,7 +104,7 @@ export function SkinToneTool() {
       setAnalysisResult(result);
     } catch (err) {
       setAnalysisError(
-        err instanceof Error ? err.message : "Failed to fetch analysis"
+        err instanceof Error ? err.message : "Failed to fetch analysis",
       );
     } finally {
       setAnalysisLoading(false);
@@ -173,7 +118,8 @@ export function SkinToneTool() {
         <div className="max-w-screen-sm mx-auto px-6 py-6">
           <h1 className="text-2xl mb-2">Skin Tone Personalized Analysis</h1>
           <p className="text-sm text-gray-600">
-            Get personalized protection advice based on Fitzpatrick skin classification
+            Get personalized protection advice based on Fitzpatrick skin
+            classification
           </p>
         </div>
       </div>
@@ -183,46 +129,64 @@ export function SkinToneTool() {
         <Alert className="mb-6">
           <Info className="h-4 w-4" />
           <AlertDescription>
-            Select the type that best matches your skin characteristics. This will help calculate your burn time under different UV intensities and vitamin D synthesis needs.
+            Select the type that best matches your skin characteristics. This
+            will help calculate your burn time under different UV intensities
+            and vitamin D synthesis needs.
           </AlertDescription>
         </Alert>
 
+        {/* Skin types loading / error */}
+        {typesLoading && (
+          <div className="flex items-center justify-center py-8 mb-6">
+            <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+          </div>
+        )}
+        {typesError && (
+          <Alert className="mb-6" variant="destructive">
+            <AlertDescription>{typesError}</AlertDescription>
+          </Alert>
+        )}
+
         {/* Skin Tone Selector */}
         <div className="space-y-3 mb-6">
-          {skinTypes.map((skin) => (
-            <button
-              key={skin.level}
-              onClick={() => setSelectedSkin(skin.level)}
-              className={`w-full text-left bg-white rounded-2xl shadow-md p-4 transition-all ${
-                selectedSkin === skin.level
-                  ? "ring-2 ring-orange-500 shadow-lg"
-                  : "hover:shadow-lg"
-              }`}
-            >
-              <div className="flex items-start">
-                {/* Color Indicator */}
-                <div
-                  className={`w-12 h-12 rounded-xl ${skin.color} flex-shrink-0 mr-4 ${
-                    skin.level >= 5 ? "border border-gray-300" : ""
-                  }`}
-                ></div>
+          {!typesLoading &&
+            skinTypes.map((skin) => (
+              <button
+                key={skin.level}
+                onClick={() => setSelectedSkin(skin.level)}
+                className={`w-full text-left bg-white rounded-2xl shadow-md p-4 transition-all ${
+                  selectedSkin === skin.level
+                    ? "ring-2 ring-orange-500 shadow-lg"
+                    : "hover:shadow-lg"
+                }`}
+              >
+                <div className="flex items-start">
+                  {/* Color Indicator - use map so Tailwind includes classes (API color can be purged) */}
+                  <div
+                    className={`w-12 h-12 rounded-xl ${SKIN_COLOR_CLASSES[skin.level] ?? skin.color} flex-shrink-0 mr-4 ${
+                      skin.level >= 5 ? "border border-gray-300" : ""
+                    }`}
+                  ></div>
 
-                {/* Info */}
-                <div className="flex-1">
-                  <div className="flex items-start justify-between mb-1">
-                    <h3 className="font-semibold text-sm">{skin.name}</h3>
-                    {selectedSkin === skin.level && (
-                      <Check className="w-5 h-5 text-orange-500 flex-shrink-0 ml-2" />
-                    )}
-                  </div>
-                  <p className="text-xs text-gray-600 mb-2">{skin.description}</p>
-                  <div className="text-xs text-gray-500">
-                    Burn Time: <span className="font-medium">{skin.burnTime}</span>
+                  {/* Info */}
+                  <div className="flex-1">
+                    <div className="flex items-start justify-between mb-1">
+                      <h3 className="font-semibold text-sm">{skin.name}</h3>
+                      {selectedSkin === skin.level && (
+                        <Check className="w-5 h-5 text-orange-500 flex-shrink-0 ml-2" />
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-600 mb-2">
+                      {skin.description}
+                    </p>
+                    <div className="text-xs text-gray-500">
+                      Burn Time:{" "}
+                      <span className="font-medium">{skin.burnTime}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </button>
-          ))}
+              </button>
+            ))}
         </div>
 
         {/* Save Button */}
@@ -299,7 +263,7 @@ export function SkinToneTool() {
                       <span className="mr-2">⚠️</span>
                       <span>{factor}</span>
                     </li>
-                  )
+                  ),
                 )}
               </ul>
             </div>
@@ -336,7 +300,7 @@ export function SkinToneTool() {
                 {analysisResult.personalized_recommendations.map(
                   (rec, index) => (
                     <li key={index}>• {rec}</li>
-                  )
+                  ),
                 )}
               </ul>
             </div>
@@ -345,14 +309,20 @@ export function SkinToneTool() {
 
         {/* Fitzpatrick Explanation */}
         <div className="bg-white rounded-2xl shadow-md p-6">
-          <h3 className="font-semibold mb-3">About Fitzpatrick Skin Classification</h3>
+          <h3 className="font-semibold mb-3">
+            About Fitzpatrick Skin Classification
+          </h3>
           <p className="text-sm text-gray-700 leading-relaxed mb-3">
-            The Fitzpatrick skin classification system was developed by Harvard dermatologist Thomas
-            Fitzpatrick in 1975 and is the globally recognized standard for assessing skin's response to ultraviolet radiation.
+            The Fitzpatrick skin classification system was developed by Harvard
+            dermatologist Thomas Fitzpatrick in 1975 and is the globally
+            recognized standard for assessing skin's response to ultraviolet
+            radiation.
           </p>
           <p className="text-sm text-gray-700 leading-relaxed">
-            The system is primarily based on skin's reaction after sun exposure (burn vs. tan), genetic pigmentation levels, and melanin content.
-            In Australia's multicultural context, accurately assessing skin type is crucial for personalized UV protection.
+            The system is primarily based on skin's reaction after sun exposure
+            (burn vs. tan), genetic pigmentation levels, and melanin content. In
+            Australia's multicultural context, accurately assessing skin type is
+            crucial for personalized UV protection.
           </p>
         </div>
       </div>

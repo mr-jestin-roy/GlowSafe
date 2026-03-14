@@ -67,12 +67,12 @@ export function Home() {
   const generateHourlyForecast = (currentHour: number) => {
     const forecast: HourlyForecast[] = [];
     const currentTime = new Date();
-    
+
     // Generate forecast for next 12 hours
     for (let i = 0; i < 12; i++) {
       const hour = (currentHour + i) % 24;
       let uvIndex: number;
-      
+
       // Simulate UV index based on time of day (higher during midday)
       if (hour >= 6 && hour <= 18) {
         // Daytime - peak at noon
@@ -82,17 +82,17 @@ export function Home() {
         // Nighttime
         uvIndex = 0;
       }
-      
+
       uvIndex = Math.round(uvIndex);
       const riskInfo = getRiskLevel(uvIndex);
-      
+
       forecast.push({
         hour: `${hour.toString().padStart(2, '0')}:00`,
         uvIndex,
         color: riskInfo.color,
       });
     }
-    
+
     return forecast;
   };
 
@@ -100,37 +100,40 @@ export function Home() {
   const generateWeeklyForecast = () => {
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const forecast: WeeklyData[] = [];
-    
+
     for (let i = 0; i < 7; i++) {
       const maxUV = Math.floor(Math.random() * 5) + 8; // 8-12
       const minUV = Math.floor(Math.random() * 3) + 2; // 2-4
-      
+
       forecast.push({
         day: days[i],
         maxUV,
         minUV,
       });
     }
-    
+
     return forecast;
   };
 
+  // Normalize postcode for DB lookup: strip leading zeros (e.g. 0870 -> 870)
+  const normalizePostcodeForLookup = (code: string) => code.replace(/^0+/, "") || "0";
+
   // Look up postcode in DB and fetch UV data from Open-Meteo API (free, no key needed)
   const fetchUVData = async (code?: string) => {
-    const searchCode = code || postcode;
-    if (!/^\d{4}$/.test(searchCode)) {
-      setPostcodeError("Please enter a valid 4-digit Australian postcode");
+    const raw = (code || postcode).trim();
+    if (!/^\d{3,4}$/.test(raw)) {
+      setPostcodeError("Please enter a valid 3 or 4-digit Australian postcode");
       return;
     }
-
-    const entry = postcodes[searchCode];
+    const lookupCode = normalizePostcodeForLookup(raw);
+    const entry = postcodes[lookupCode];
     if (!entry) {
       setPostcodeError("Postcode not found. Please enter a valid Australian postcode.");
       return;
     }
 
     setPostcodeError("");
-    setPostcode(searchCode);
+    setPostcode(lookupCode);
     setLoading(true);
 
     try {
@@ -143,6 +146,9 @@ export function Home() {
       }
 
       const data = await response.json();
+      console.log("UV API response:", data);
+      console.log("UV data:", data.current.uv_index);
+
 
       const currentUV = Math.round(data.current.uv_index);
       const riskInfo = getRiskLevel(currentUV);
@@ -197,23 +203,23 @@ export function Home() {
     } catch (error) {
       console.error("Failed to fetch UV data:", error);
 
-      // Fallback to mock data if API fails
-      const mockUV = Math.floor(Math.random() * 5) + 8;
-      const riskInfo = getRiskLevel(mockUV);
-      const currentHour = new Date().getHours();
+      // // Fallback to mock data if API fails
+      // const mockUV = Math.floor(Math.random() * 5) + 8;
+      // const riskInfo = getRiskLevel(mockUV);
+      // const currentHour = new Date().getHours();
 
-      setUvData({
-        value: mockUV,
-        location: `${entry.suburb}, ${entry.state}`,
-        time: new Date().toLocaleTimeString("en-US", {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-        ...riskInfo,
-      });
+      // setUvData({
+      //   value: mockUV,
+      //   location: `${entry.suburb}, ${entry.state}`,
+      //   time: new Date().toLocaleTimeString("en-US", {
+      //     hour: "2-digit",
+      //     minute: "2-digit",
+      //   }),
+      //   ...riskInfo,
+      // });
 
-      localStorage.setItem("currentUV", String(mockUV));
-      setHourlyForecast(generateHourlyForecast(currentHour));
+      // localStorage.setItem("currentUV", String(mockUV));
+      // setHourlyForecast(generateHourlyForecast(currentHour));
       setWeeklyForecast(generateWeeklyForecast());
       setLoading(false);
     }
@@ -224,7 +230,7 @@ export function Home() {
     // Base protection time for Fitzpatrick I-VI (minutes)
     const baseProtectionTime = [10, 15, 20, 30, 40, 60];
     const baseTime = baseProtectionTime[fitzpatrick - 1] || 20;
-    
+
     // Higher UV index means shorter burn time
     const burnTime = Math.round(baseTime / (uvIndex / 3));
     return Math.max(burnTime, 5); // Minimum 5 minutes
@@ -263,20 +269,22 @@ export function Home() {
   };
 
   const handleDialogSubmit = () => {
-    const entry = postcodes[dialogPostcode];
-    if (!/^\d{4}$/.test(dialogPostcode)) {
-      setPostcodeError("Please enter a valid 4-digit Australian postcode");
+    const raw = dialogPostcode.trim();
+    if (!/^\d{3,4}$/.test(raw)) {
+      setPostcodeError("Please enter a valid 3 or 4-digit Australian postcode");
       return;
     }
+    const lookupCode = normalizePostcodeForLookup(raw);
+    const entry = postcodes[lookupCode];
     if (!entry) {
       setPostcodeError("Postcode not found. Please enter a valid Australian postcode.");
       return;
     }
     setPostcodeError("");
-    setPostcode(dialogPostcode);
-    localStorage.setItem("postcode", dialogPostcode);
+    setPostcode(lookupCode);
+    localStorage.setItem("postcode", lookupCode);
     setShowPostcodeDialog(false);
-    fetchUVData(dialogPostcode);
+    fetchUVData(lookupCode);
   };
 
   const safeHours = getSafeHours();
@@ -347,9 +355,12 @@ export function Home() {
       )}
 
       {!uvData && !loading && (
-        <div className="text-center py-20 text-gray-400">
+        <div className="text-center py-20 text-gray-500">
           <Sun className="w-12 h-12 mx-auto mb-3 opacity-50" />
-          <p>Enter your postcode to check UV index</p>
+          <p className="mb-4">Enter your postcode to check UV index</p>
+          <Button onClick={() => setShowPostcodeDialog(true)} variant="default">
+            Enter postcode
+          </Button>
         </div>
       )}
 

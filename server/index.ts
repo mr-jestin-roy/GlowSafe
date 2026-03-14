@@ -15,6 +15,12 @@ const PORT = process.env.PORT || 3001;
 
 app.use(express.json());
 
+// Log API requests (shows in terminal where you run pnpm dev:server)
+app.use((req, _res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+  next();
+});
+
 // Routes
 app.use("/api/postcodes", postcodesRouter);
 app.use("/api/users", usersRouter);
