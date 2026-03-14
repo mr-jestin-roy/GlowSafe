@@ -2,17 +2,22 @@
 @import './tailwind.css';
 @import './theme.css';
 
-/* 移动端优化 */
 @layer base {
   html, body, #root {
     height: 100%;
-    overflow: hidden;
   }
-  
+
+  /* Mobile: prevent bounce scroll on body only, #root must allow child scrolling */
+  @media (max-width: 1023px) {
+    body {
+      overflow: hidden;
+      touch-action: manipulation;
+    }
+  }
+
   body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    touch-action: manipulation;
   }
 
   /* iOS安全区域支持 */
