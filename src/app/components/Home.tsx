@@ -282,7 +282,7 @@ export function Home() {
   const safeHours = getSafeHours();
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 xl:p-10 max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg xl:max-w-screen-xl mx-auto">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg mx-auto">
       {/* Postcode Dialog */}
       <Dialog open={showPostcodeDialog} onOpenChange={setShowPostcodeDialog}>
         <DialogContent>
@@ -316,20 +316,9 @@ export function Home() {
         </DialogContent>
       </Dialog>
 
-      {/* Emergency Alert — top of page when UV high */}
-      {uvData && !loading && uvData.value >= 8 && (
-        <Alert className="mb-4 mt-4 border-red-200 bg-red-50">
-          <AlertCircle className="h-4 w-4 text-red-600" />
-          <AlertDescription className="text-red-900">
-            <strong>High UV Warning:</strong> Avoid being outdoors between 10 AM and 4 PM.
-            If you must go out, use SPF50+ sunscreen, wear UPF protective clothing, and don sunglasses and a wide-brimmed hat.
-          </AlertDescription>
-        </Alert>
-      )}
-
       {/* Header */}
       <div className="mb-6 pt-4">
-        <h1 className="text-2xl lg:text-3xl mb-2">UV Protection Assistant</h1>
+        <h1 className="text-2xl mb-2">UV Protection Assistant</h1>
         {uvData && (
           <div className="flex items-center justify-between mt-2">
             <div className="flex items-center text-gray-600">
@@ -367,9 +356,9 @@ export function Home() {
       {uvData && !loading && (
       <>
       {/* UV Dashboard + Hourly: side by side on desktop */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
       {/* UV Index Dashboard */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-8">
+      <div className="bg-white rounded-3xl shadow-lg p-8">
         <div className="text-center">
           <p className="text-sm text-gray-500 mb-2">Current UV Index</p>
           <div className="relative w-48 h-48 mx-auto mb-4">
@@ -426,7 +415,7 @@ export function Home() {
       </div>
 
       {/* Hourly Forecast */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-md p-6">
+      <div className="bg-white rounded-2xl shadow-md p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold flex items-center">
             <Clock className="w-5 h-5 mr-2 text-orange-600" />
@@ -459,7 +448,7 @@ export function Home() {
       </div>{/* end grid */}
 
       {/* Safe Hours + Weekly: side by side on desktop */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
       {/* Safe Hours */}
       {safeHours && (
         <div className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl shadow-md p-6 text-white">
@@ -481,7 +470,7 @@ export function Home() {
       )}
 
       {/* Weekly Trend */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-md p-6">
+      <div className="bg-white rounded-2xl shadow-md p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold flex items-center">
             <TrendingUp className="w-5 h-5 mr-2 text-orange-600" />
@@ -520,10 +509,10 @@ export function Home() {
       </div>{/* end grid */}
 
       {/* Bottom row: Personalized + Explanation side by side on desktop */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
       {/* Personalized Advice */}
       {skinTone && uvData && (
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-md p-6">
+        <div className="bg-white rounded-2xl shadow-md p-6">
           <h3 className="font-semibold mb-3">Your Personalized Protection Advice</h3>
           <div className="space-y-3">
             <div className="flex justify-between items-center pb-3 border-b">
@@ -567,7 +556,7 @@ export function Home() {
       )}
 
       {/* UV Index Explanation */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-md p-6">
+      <div className="bg-white rounded-2xl shadow-md p-6">
         <h3 className="font-semibold mb-4">UV Index Level Explanation</h3>
         <div className="space-y-2">
           {[
@@ -589,6 +578,16 @@ export function Home() {
       </div>
       </div>{/* end grid */}
 
+      {/* Emergency Alert */}
+      {uvData && uvData.value >= 8 && (
+        <Alert className="mt-6 border-red-200 bg-red-50">
+          <AlertCircle className="h-4 w-4 text-red-600" />
+          <AlertDescription className="text-red-900">
+            <strong>High UV Warning:</strong> Avoid being outdoors between 10 AM and 4 PM.
+            If you must go out, use SPF50+ sunscreen, wear UPF protective clothing, and don sunglasses and a wide-brimmed hat.
+          </AlertDescription>
+        </Alert>
+      )}
       </>
       )}
     </div>

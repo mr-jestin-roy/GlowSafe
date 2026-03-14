@@ -160,11 +160,11 @@ export function KnowledgeCenter() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   return (
-    <div className="min-h-screen pb-6">
+    <div className="min-h-screen bg-gradient-to-b from-sky-100 to-orange-50 pb-6">
       {/* Header */}
-      <div className="bg-white/80 backdrop-blur-sm shadow-sm">
-        <div className="max-w-screen-sm lg:max-w-screen-lg xl:max-w-screen-xl mx-auto px-6 py-6">
-          <h1 className="text-2xl lg:text-3xl mb-2">UV Health Knowledge Center</h1>
+      <div className="bg-white shadow-sm">
+        <div className="max-w-screen-sm mx-auto px-6 py-6">
+          <h1 className="text-2xl mb-2">UV Health Knowledge Center</h1>
           <p className="text-sm text-gray-600">
             Based on scientific data and recommendations from Australian authorities
           </p>
@@ -172,93 +172,89 @@ export function KnowledgeCenter() {
       </div>
 
       {/* Knowledge List */}
-      <div className="max-w-screen-sm lg:max-w-screen-lg xl:max-w-screen-xl mx-auto px-6 py-6">
-        {/* Desktop: 2-column grid, Mobile: single column accordion */}
-        <div className="lg:grid lg:grid-cols-2 lg:gap-6">
-          <Accordion
-            type="single"
-            collapsible
-            value={expandedId || ""}
-            onValueChange={(value) => setExpandedId(value || null)}
-            className="lg:contents"
-          >
-            {knowledgeData.map((item) => (
-              <AccordionItem
-                key={item.id}
-                value={item.id}
-                className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-md mb-4 border-none overflow-hidden"
-              >
-                <AccordionTrigger className="px-6 py-4 hover:no-underline hover:bg-gray-50">
-                  <div className="flex items-center">
-                    <span className="text-3xl mr-4">{item.icon}</span>
-                    <span className="text-left font-medium">{item.title}</span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="px-6 pb-6">
-                  {/* Description */}
-                  <p className="text-sm text-gray-700 mb-4 leading-relaxed">
-                    {item.content.description}
-                  </p>
+      <div className="max-w-screen-sm mx-auto px-6 py-6">
+        <Accordion
+          type="single"
+          collapsible
+          value={expandedId || ""}
+          onValueChange={(value) => setExpandedId(value || null)}
+        >
+          {knowledgeData.map((item) => (
+            <AccordionItem
+              key={item.id}
+              value={item.id}
+              className="bg-white rounded-2xl shadow-md mb-4 border-none overflow-hidden"
+            >
+              <AccordionTrigger className="px-6 py-4 hover:no-underline hover:bg-gray-50">
+                <div className="flex items-center">
+                  <span className="text-3xl mr-4">{item.icon}</span>
+                  <span className="text-left font-medium">{item.title}</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="px-6 pb-6">
+                {/* Description */}
+                <p className="text-sm text-gray-700 mb-4 leading-relaxed">
+                  {item.content.description}
+                </p>
 
-                  {/* Statistics */}
-                  <div className="mb-4">
-                    <h4 className="font-semibold text-sm mb-2 text-orange-700">
-                      📊 Key Statistics
-                    </h4>
-                    <ul className="space-y-2">
-                      {item.content.statistics.map((stat, index) => (
-                        <li
-                          key={index}
-                          className="text-sm text-gray-700 pl-4 border-l-2 border-orange-200"
-                        >
-                          {stat}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  {/* Recommendations */}
-                  <div className="mb-4">
-                    <h4 className="font-semibold text-sm mb-2 text-green-700">
-                      ✅ Protection Recommendations
-                    </h4>
-                    <ul className="space-y-2">
-                      {item.content.recommendations.map((rec, index) => (
-                        <li key={index} className="text-sm text-gray-700 flex">
-                          <ChevronRight className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0 text-green-600" />
-                          <span>{rec}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  {/* Data Source */}
-                  <div className="bg-gray-50 rounded-lg p-3 mt-4">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="text-xs text-gray-500 mb-1">Data Source</p>
-                        <p className="text-sm font-medium text-gray-700">
-                          {item.content.source}
-                        </p>
-                      </div>
-                      <a
-                        href={item.content.sourceUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-700"
+                {/* Statistics */}
+                <div className="mb-4">
+                  <h4 className="font-semibold text-sm mb-2 text-orange-700">
+                    📊 Key Statistics
+                  </h4>
+                  <ul className="space-y-2">
+                    {item.content.statistics.map((stat, index) => (
+                      <li
+                        key={index}
+                        className="text-sm text-gray-700 pl-4 border-l-2 border-orange-200"
                       >
-                        <ExternalLink className="w-4 h-4" />
-                      </a>
+                        {stat}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* Recommendations */}
+                <div className="mb-4">
+                  <h4 className="font-semibold text-sm mb-2 text-green-700">
+                    ✅ Protection Recommendations
+                  </h4>
+                  <ul className="space-y-2">
+                    {item.content.recommendations.map((rec, index) => (
+                      <li key={index} className="text-sm text-gray-700 flex">
+                        <ChevronRight className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0 text-green-600" />
+                        <span>{rec}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* Data Source */}
+                <div className="bg-gray-50 rounded-lg p-3 mt-4">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">Data Source</p>
+                      <p className="text-sm font-medium text-gray-700">
+                        {item.content.source}
+                      </p>
                     </div>
+                    <a
+                      href={item.content.sourceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-700"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
                   </div>
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-        </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
 
         {/* Emergency Contact */}
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-6 mt-6 lg:max-w-screen-md lg:mx-auto">
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-6 mt-6">
           <h3 className="font-semibold text-red-900 mb-3">⚠️ Emergency Alert</h3>
           <p className="text-sm text-red-800 mb-3">
             If you notice any of the following abnormalities on your skin, seek medical attention immediately:
