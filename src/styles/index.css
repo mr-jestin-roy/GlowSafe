@@ -7,12 +7,10 @@
     height: 100%;
   }
 
-  /* Mobile: prevent bounce scroll on the body */
+  /* Mobile: prevent bounce scroll on body only, #root must allow child scrolling */
   @media (max-width: 1023px) {
-    html, body, #root {
-      overflow: hidden;
-    }
     body {
+      overflow: hidden;
       touch-action: manipulation;
     }
   }
