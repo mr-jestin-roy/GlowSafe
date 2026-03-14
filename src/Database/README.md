@@ -39,3 +39,19 @@ psql -d glowsafe -f prevention_tips.sql
 psql -d glowsafe -f cancer_incidence_by_state.sql
 psql -d glowsafe -f cancer_incidence_mortality_by_age_gender.sql
 ```
+
+## Render.com Pre-Deploy Command
+
+To run all SQL files before each deploy (e.g. on Render), use the Node script (no `psql` required):
+
+```bash
+npm run db:seed
+```
+
+Or set **Pre-Deploy Command** in Render to:
+
+```
+npm run db:seed
+```
+
+Requires `DATABASE_URL` to be set in the environment.
