@@ -56,31 +56,24 @@ export function Landing() {
         </Link>
       </div>
 
-      {/* Right: visual / illustration */}
-      <div className="hidden lg:flex flex-col items-center justify-center lg:flex-1">
+      {/* Right: visual / illustration (same on mobile and desktop, scaled for screen) */}
+      <div className="flex flex-col items-center justify-center lg:flex-1">
         <div className="relative">
           {/* Glow ring */}
           <div className="absolute inset-0 rounded-full bg-orange-300/20 blur-3xl scale-150" />
-          {/* Main sun icon */}
-          <div className="relative w-64 h-64 xl:w-80 xl:h-80 bg-gradient-to-br from-orange-400 to-yellow-300 rounded-full flex items-center justify-center shadow-2xl">
-            <Sun className="w-32 h-32 xl:w-40 xl:h-40 text-white/90" />
+          {/* Main sun icon: smaller on mobile, larger on lg+ */}
+          <div className="relative w-48 h-48 sm:w-56 sm:h-56 lg:w-64 lg:h-64 xl:w-80 xl:h-80 bg-gradient-to-br from-orange-400 to-yellow-300 rounded-full flex items-center justify-center shadow-2xl">
+            <Sun className="w-24 h-24 sm:w-28 sm:h-28 lg:w-32 lg:h-32 xl:w-40 xl:h-40 text-white/90" />
           </div>
           {/* Floating stat cards */}
-          <div className="absolute -top-4 -right-8 bg-white rounded-2xl shadow-lg px-4 py-3 text-center">
-            <p className="text-2xl font-bold text-red-500">11+</p>
-            <p className="text-xs text-gray-500">Extreme UV</p>
+          <div className="absolute -top-2 -right-4 sm:-top-4 sm:-right-8 bg-white rounded-xl sm:rounded-2xl shadow-lg px-3 py-2 sm:px-4 sm:py-3 text-center">
+            <p className="text-lg sm:text-2xl font-bold text-red-500">11+</p>
+            <p className="text-[10px] sm:text-xs text-gray-500">Extreme UV</p>
           </div>
-          <div className="absolute -bottom-4 -left-8 bg-white rounded-2xl shadow-lg px-4 py-3 text-center">
-            <p className="text-2xl font-bold text-green-500">SPF 50+</p>
-            <p className="text-xs text-gray-500">Recommended</p>
+          <div className="absolute -bottom-2 -left-4 sm:-bottom-4 sm:-left-8 bg-white rounded-xl sm:rounded-2xl shadow-lg px-3 py-2 sm:px-4 sm:py-3 text-center">
+            <p className="text-lg sm:text-2xl font-bold text-green-500">SPF 50+</p>
+            <p className="text-[10px] sm:text-xs text-gray-500">Recommended</p>
           </div>
-        </div>
-      </div>
-
-      {/* Mobile: keep simple sun icon */}
-      <div className="lg:hidden">
-        <div className="w-24 h-24 bg-gradient-to-br from-orange-400 to-yellow-300 rounded-full flex items-center justify-center shadow-lg -mt-6 mb-2">
-          <Sun className="w-12 h-12 text-white" />
         </div>
       </div>
     </div>

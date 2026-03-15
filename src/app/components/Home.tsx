@@ -5,6 +5,15 @@ import { Alert, AlertDescription } from "./ui/alert";
 import { Link } from "react-router";
 import { Input } from "./ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "./ui/dialog";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 import postcodeData from "../../data/postcodes.json";
 
 interface PostcodeEntry {
@@ -63,38 +72,6 @@ export function Home() {
     return "#22c55e";
   };
 
-  // Generate mock hourly forecast
-  const generateHourlyForecast = (currentHour: number) => {
-    const forecast: HourlyForecast[] = [];
-    const currentTime = new Date();
-
-    // Generate forecast for next 12 hours
-    for (let i = 0; i < 12; i++) {
-      const hour = (currentHour + i) % 24;
-      let uvIndex: number;
-
-      // Simulate UV index based on time of day (higher during midday)
-      if (hour >= 6 && hour <= 18) {
-        // Daytime - peak at noon
-        const distanceFromNoon = Math.abs(12 - hour);
-        uvIndex = Math.max(0, 11 - distanceFromNoon + Math.random() * 2);
-      } else {
-        // Nighttime
-        uvIndex = 0;
-      }
-
-      uvIndex = Math.round(uvIndex);
-      const riskInfo = getRiskLevel(uvIndex);
-
-      forecast.push({
-        hour: `${hour.toString().padStart(2, '0')}:00`,
-        uvIndex,
-        color: riskInfo.color,
-      });
-    }
-
-    return forecast;
-  };
 
   // Generate mock weekly forecast
   const generateWeeklyForecast = () => {
@@ -150,7 +127,7 @@ export function Home() {
       console.log("UV data:", data.current.uv_index);
 
 
-      const currentUV = Math.round(data.current.uv_index);
+      const currentUV = Number(data.current.uv_index);
       const riskInfo = getRiskLevel(currentUV);
 
       setUvData({
@@ -166,20 +143,22 @@ export function Home() {
       // Store current UV for other components
       localStorage.setItem("currentUV", String(currentUV));
 
-      // Build hourly forecast from API data (next 12 hours from current hour)
-      const now = new Date();
-      const currentHourIndex = now.getHours();
-      const todayStr = now.toISOString().split("T")[0];
-      const startIndex = data.hourly.time.findIndex((t: string) => t === `${todayStr}T${String(currentHourIndex).padStart(2, '0')}:00`);
-      const hourlySlice = startIndex >= 0 ? startIndex : 0;
-
+      // Build hourly forecast from API data: full 24 hours of the day (00:00–23:00)
       const hourlyData: HourlyForecast[] = data.hourly.uv_index
-        .slice(hourlySlice, hourlySlice + 12)
+        .slice(0, 24)
         .map((uvi: number, i: number) => {
-          const uvIndex = Math.round(uvi);
-          const hour = (currentHourIndex + i) % 24;
+          const uvIndex = Number(uvi);
+          const timeStr = data.hourly.time[i] as string; // e.g. "2025-03-15T14:00"
+          const hour = timeStr ? new Date(timeStr).getHours() : i;
+          const hourLabel = timeStr
+            ? new Date(timeStr).toLocaleTimeString("en-AU", {
+                hour: "numeric",
+                minute: "2-digit",
+                hour12: true,
+              })
+            : `${String(hour).padStart(2, "0")}:00`;
           return {
-            hour: `${String(hour).padStart(2, '0')}:00`,
+            hour: hourLabel,
             uvIndex,
             color: getRiskLevel(uvIndex).color,
           };
@@ -220,7 +199,8 @@ export function Home() {
 
       // localStorage.setItem("currentUV", String(mockUV));
       // setHourlyForecast(generateHourlyForecast(currentHour));
-      setWeeklyForecast(generateWeeklyForecast());
+      console.log("Hourly forecast is not generated");
+
       setLoading(false);
     }
   };
@@ -237,13 +217,50 @@ export function Home() {
   };
 
   // Get safe hours (UV < 3)
+  // Safe hours = UV < 3. These occur in two blocks: morning (midnight until UV rises) and evening (when UV drops until midnight).
   const getSafeHours = () => {
-    const safeHours = hourlyForecast.filter(h => h.uvIndex < 3);
-    if (safeHours.length === 0) return null;
-    return {
-      start: safeHours[0].hour,
-      end: safeHours[safeHours.length - 1].hour,
-    };
+    if (hourlyForecast.length === 0) return null;
+    const data = hourlyForecast;
+
+    // Last consecutive safe hour from start of day (morning block)
+    let morningEndIndex = -1;
+    for (let i = 0; i < data.length; i++) {
+      if (data[i].uvIndex >= 3) break;
+      morningEndIndex = i;
+    }
+
+    // First consecutive safe hour from end of day (evening block)
+    let eveningStartIndex = data.length;
+    for (let i = data.length - 1; i >= 0; i--) {
+      if (data[i].uvIndex >= 3) break;
+      eveningStartIndex = i;
+    }
+
+    // No safe hours at all
+    if (morningEndIndex === -1 && eveningStartIndex === data.length) return null;
+
+    // Safe all day (one contiguous block)
+    if (morningEndIndex === data.length - 1 || eveningStartIndex === 0) {
+      return {
+        start: data[0].hour,
+        end: data[data.length - 1].hour,
+      };
+    }
+
+    // Two blocks: morning and evening
+    const morningRange =
+      morningEndIndex >= 0 ? `${data[0].hour} – ${data[morningEndIndex].hour}` : null;
+    const eveningRange =
+      eveningStartIndex < data.length
+        ? `${data[eveningStartIndex].hour} – ${data[data.length - 1].hour}`
+        : null;
+
+    if (morningRange && eveningRange) {
+      return { start: morningRange, end: eveningRange };
+    }
+    if (morningRange) return { start: morningRange, end: "" };
+    if (eveningRange) return { start: eveningRange, end: "" };
+    return null;
   };
 
   useEffect(() => {
@@ -436,36 +453,79 @@ export function Home() {
         </Button>
       </div>
 
-      {/* Hourly Forecast */}
+      {/* Hourly Forecast – UV index vs time of day (area chart) */}
       <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-md p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold flex items-center">
             <Clock className="w-5 h-5 mr-2 text-orange-600" />
-            Hourly Forecast
+            Daily UV Forecast
           </h3>
         </div>
-        <div className="overflow-x-auto -mx-2 px-2">
-          <div className="flex gap-3 min-w-max pb-2">
-            {hourlyForecast.map((item, index) => (
-              <div
-                key={index}
-                className="flex flex-col items-center min-w-[60px] bg-gray-50 rounded-lg p-3"
-              >
-                <span className="text-xs text-gray-600 mb-2">{item.hour}</span>
-                <div className="relative w-8 h-24 bg-gray-200 rounded-full overflow-hidden">
-                  <div
-                    className="absolute bottom-0 w-full transition-all"
-                    style={{
-                      height: `${(item.uvIndex / 12) * 100}%`,
-                      backgroundColor: getUVColor(item.uvIndex),
-                    }}
-                  ></div>
-                </div>
-                <span className="text-sm font-semibold mt-2">{item.uvIndex}</span>
-              </div>
-            ))}
+        {hourlyForecast.length === 0 ? (
+          <div className="h-[200px] flex items-center justify-center text-gray-500 text-sm">
+            Enter a postcode and load data to see the UV forecast.
           </div>
-        </div>
+        ) : (
+          <div className="h-[220px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart
+                data={hourlyForecast.map((item) => ({
+                  time: item.hour,
+                  uv: item.uvIndex,
+                  fill: item.color ?? getUVColor(item.uvIndex),
+                }))}
+                margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+              >
+                <defs>
+                  <linearGradient id="uvAreaGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#f97316" stopOpacity={0.6} />
+                    <stop offset="100%" stopColor="#f97316" stopOpacity={0.1} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis
+                  dataKey="time"
+                  tick={{ fontSize: 11 }}
+                  tickLine={false}
+                  axisLine={{ stroke: "#d1d5db" }}
+                />
+                <YAxis
+                  dataKey="uv"
+                  name="UV Index"
+                  tick={{ fontSize: 11 }}
+                  tickLine={false}
+                  axisLine={{ stroke: "#d1d5db" }}
+                  domain={[0, 10]}
+                  allowDecimals={false}
+                />
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (!active || !payload?.[0]) return null;
+                    const d = payload[0].payload;
+                    return (
+                      <div className="bg-gray-900 text-white text-xs px-3 py-2 rounded shadow-lg">
+                        <div className="font-medium">{d.time}</div>
+                        <div
+                          className="mt-1"
+                          style={{ color: getUVColor(d.uv) }}
+                        >
+                          UV Index: <span className="font-semibold">{d.uv}</span>
+                        </div>
+                      </div>
+                    );
+                  }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="uv"
+                  stroke="#f97316"
+                  strokeWidth={2}
+                  fill="url(#uvAreaGradient)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </div>
       </div>{/* end grid */}
 
@@ -481,10 +541,16 @@ export function Home() {
               <p className="text-sm opacity-90 mb-2">
                 UV index below 3 - safe for outdoor activities without extensive protection
               </p>
-              <div className="flex items-center text-lg font-semibold">
-                <span>{safeHours.start}</span>
-                <span className="mx-2">-</span>
-                <span>{safeHours.end}</span>
+              <div className="text-lg font-semibold">
+                {safeHours.end ? (
+                  <>
+                    <span>{safeHours.start}</span>
+                    <span className="mx-2">,</span>
+                    <span>{safeHours.end}</span>
+                  </>
+                ) : (
+                  <span>{safeHours.start}</span>
+                )}
               </div>
             </div>
           </div>

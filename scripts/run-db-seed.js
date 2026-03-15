@@ -1,15 +1,18 @@
 /**
  * Run all SQL files in src/Database/ in the correct order.
  * On Render, run via Start Command: npm run db:seed && npm run start
- * Requires DATABASE_URL in the environment.
+ * Requires DATABASE_URL in the environment (or in .env when run locally).
  */
 import pg from "pg";
 import { readFile } from "fs/promises";
 import { fileURLToPath } from "url";
 import path from "path";
+import dotenv from "dotenv";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, "..");
+dotenv.config({ path: path.join(ROOT, ".env") });
+
 const DB_DIR = path.join(ROOT, "src", "Database");
 
 const ORDER = [
